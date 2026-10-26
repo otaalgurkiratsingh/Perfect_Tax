@@ -7,6 +7,7 @@ import { getIntake, resumeExpiry, type IntakeRow } from "@/lib/intake/server";
 import { sendMessage, withinSendWindow } from "@/lib/messaging/send";
 import { issueToken } from "@/lib/security/tokens";
 import { adminClient, DOCUMENTS_BUCKET } from "@/lib/supabase/admin";
+import { runQuarterlyChase } from "@/lib/quarterly/chase";
 
 // Scheduled work. Every job is idempotent and "claims" each row with a
 // conditional update before sending, so overlapping runs can never send the
@@ -25,6 +26,7 @@ export interface JobOptions {
 export interface JobReport {
   abandonment: { first: number; second: number };
   docRequests: { reminders: number };
+  quarterly: Awaited<ReturnType<typeof runQuarterlyChase>>;
   retention: { flagged: number };
   cleanup: { rateLimits: number; tokens: number; pendingUploads: number };
   sendWindowOpen: boolean;
@@ -156,8 +158,10 @@ export async function runAllJobs(opts: JobOptions = {}): Promise<JobReport> {
   const messages = open
     ? { abandonment: await abandonmentReminders(now), docRequests: await docRequestReminders(now) }
     : empty;
+  const quarterly = await runQuarterlyChase(now, { sendWindowOpen: open });
   return {
     ...messages,
+    quarterly,
     retention: await retentionFlags(now),
     cleanup: await cleanup(now),
     sendWindowOpen: open,

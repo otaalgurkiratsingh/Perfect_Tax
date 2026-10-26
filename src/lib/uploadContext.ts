@@ -2,6 +2,7 @@ import "server-only";
 import { firmConfig } from "@firm/config";
 import { audit } from "@/lib/audit";
 import { completeDocRequestIfDone, getDocRequest } from "@/lib/docRequests";
+import { loadClientQuarter, syncItemFromFiles } from "@/lib/quarterly/engine";
 import { documentSlotsFor } from "@/lib/intake/schema";
 import { getIntake } from "@/lib/intake/server";
 import { bearerToken, resolveToken, type TokenRecord } from "@/lib/security/tokens";
@@ -20,12 +21,15 @@ export interface UploadContext {
   canRemove(doc: DocumentRow): boolean;
   /** Called after a verified upload (status changes, audit, etc.). */
   afterUpload(doc: DocumentRow): Promise<void>;
+  /** Called after a file is removed. */
+  afterRemove?(doc: DocumentRow): Promise<void>;
 }
 
 export async function resolveUploadContext(request: Request): Promise<UploadContext | null> {
-  const token = await resolveToken(bearerToken(request), ["intake_resume", "doc_request"]);
+  const token = await resolveToken(bearerToken(request), ["intake_resume", "doc_request", "quarter_upload"]);
   if (!token) return null;
   if (token.purpose === "doc_request") return docRequestContext(token);
+  if (token.purpose === "quarter_upload") return quarterContext(token);
   return intakeContext(token);
 }
 
@@ -72,5 +76,42 @@ async function intakeContext(token: TokenRecord): Promise<UploadContext | null> 
     owns: (doc) => doc.intake_id === intake.id && !doc.client_quarter_id,
     canRemove: () => true,
     async afterUpload() {},
+  };
+}
+
+async function quarterContext(token: TokenRecord): Promise<UploadContext | null> {
+  const loaded = token.client_quarter_id ? await loadClientQuarter(token.client_quarter_id) : null;
+  if (!loaded || loaded.cq.status === "processed" || !loaded.client.active) return null;
+  const { cq, client, quarter, items } = loaded;
+  return {
+    token,
+    async target({ itemId }) {
+      const item = items.find((i) => i.id === itemId);
+      if (!item) return { error: "Unknown checklist item" };
+      // Files land pre-organized: client → year-quarter → document type.
+      return {
+        clientId: client.id,
+        clientQuarterId: cq.id,
+        checklistItemId: item.id,
+        folder: `clients/${client.id}/${quarter.label}/${item.item_key}`,
+        docType: item.item_key,
+        source: "quarter_link",
+      };
+    },
+    owns: (doc) => doc.client_quarter_id === cq.id,
+    canRemove: () => true,
+    async afterUpload(doc) {
+      if (doc.checklist_item_id) await syncItemFromFiles(doc.checklist_item_id);
+      await audit({
+        actorType: "client",
+        action: "client_upload",
+        targetType: "client_quarter",
+        targetId: cq.id,
+        details: { clientId: client.id, item: doc.doc_type, documentId: doc.id },
+      });
+    },
+    async afterRemove(doc) {
+      if (doc.checklist_item_id) await syncItemFromFiles(doc.checklist_item_id);
+    },
   };
 }

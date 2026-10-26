@@ -10,5 +10,6 @@ export async function POST(request: Request) {
   if (!doc || !ctx.owns(doc)) return jsonError("File not found", 404);
   if (!ctx.canRemove(doc)) return jsonError("This file can no longer be removed. Please contact the office.", 409);
   await removeDocument(doc);
+  await ctx.afterRemove?.(doc);
   return jsonOk({ removed: true });
 }

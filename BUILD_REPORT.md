@@ -83,3 +83,26 @@ merge as you like.
   app, and every job is idempotent with atomic "claim then send" updates, so a missed or doubled run is harmless.
   Scheduled functions only run on the production deploy, which matches the no-branch-deploys rule.
 - Tests: `automations.spec.ts` (6) — all passing.
+
+### Phase 4 — Quarterly Collection Engine
+- **Clients**: persistent client records (business, contact, email, mobile, WhatsApp number, services =
+  bookkeeping / payroll / HST). Created from an intake in one click ("Create client") or added manually.
+- **Client page** (`/portal`): password-less magic-link sign-in; shows the current quarter's checklist with an
+  upload slot per item and past quarters' history. Row Level Security limits a signed-in client to their own rows.
+- **Quarter cycles**: staff open a quarter once (`/staff/quarters`) → every active client gets a checklist built
+  from the templates for their services, merged without duplicates, with plain instructions
+  ("…for Oct to Dec 2026"). Calendar quarters.
+- **Personal upload link** (`/q#t=…`): no login; checklist, per-item upload slots, "Nothing to send for this one
+  this quarter", live progress, "All done" message. Files are stored as
+  `clients/<client>/<YYYY-Qn>/<document type>/…` — no email attachments anywhere.
+- **The chase**: Day 0 request (WhatsApp → SMS fallback, + email), then day 7 gentle / 14 (the firm's "second
+  message" wording [FIRM TO CONFIRM]) / 21 firmer / 28 final, ONLY to clients still Requested/Partial. Completing
+  the checklist flips the client to Complete inside the upload request, so their reminders stop instantly. If the
+  job was down it sends only the latest due reminder (no bursts). WhatsApp failures reported later by Twilio's
+  status callback trigger the SMS fallback.
+- **Quarter board** (`/staff/quarters/<id>`): every client × Not Sent / Requested / Partial / Complete / Processed,
+  counts, filters (status, service, search), checklist progress, last and next reminder, one-click Send/Nudge,
+  Mark processed, bulk "Send requests to all Not Sent" and "Nudge all stragglers".
+- WhatsApp templates live in `firm.config.ts` next to SMS/email. WhatsApp stays OFF (`features.whatsappEnabled`)
+  until a Twilio WhatsApp sender and Meta-approved templates (`contentSid`) exist; until then SMS + email.
+- Tests: `quarterly.spec.ts` (full cycle with 5 clients) + `whatsapp.test.ts` (fallback logic) — passing.

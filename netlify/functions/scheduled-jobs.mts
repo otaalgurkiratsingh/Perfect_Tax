@@ -3,7 +3,7 @@ import type { Config } from "@netlify/functions";
 // Netlify Scheduled Function: every 15 minutes, ask the app to run its jobs
 // (reminders, quarterly chase, retention flags, cleanup). Scheduled functions
 // only run on the published production deploy.
-export default async () => {
+const scheduledJobs = async () => {
   const base = process.env.URL;
   const secret = process.env.CRON_SECRET;
   if (!base || !secret) {
@@ -17,6 +17,8 @@ export default async () => {
   });
   console.log("scheduled-jobs", res.status, await res.text());
 };
+
+export default scheduledJobs;
 
 export const config: Config = {
   schedule: "*/15 * * * *",

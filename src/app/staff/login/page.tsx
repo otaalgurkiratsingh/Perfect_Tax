@@ -11,6 +11,7 @@ const REASONS: Record<string, string> = {
   expired: "Your session reached its time limit. Please sign in again.",
   signed_out: "You're signed out.",
   forbidden: "That account doesn't have dashboard access.",
+  link_expired: "That link has expired or was already used. Use \"Forgot your password?\" to get a new one.",
 };
 
 export default async function StaffLogin({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {

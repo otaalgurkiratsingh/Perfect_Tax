@@ -104,7 +104,6 @@ async function log(row: {
 }
 
 function providerReady(channel: Channel): boolean {
-  if (env.messagingMode !== "live") return false;
   if (channel === "email") return Boolean(env.resendApiKey && firmConfig.notifications.fromEmail);
   const t = env.twilio;
   if (!t.accountSid || !t.authToken) return false;
@@ -202,10 +201,16 @@ export async function sendMessage(input: SendInput): Promise<SendResult> {
         });
     }
 
-    if (!providerReady(input.channel)) {
+    if (env.messagingMode !== "live") {
       await writeOutbox({ channel: input.channel, templateKey: input.templateKey, to: address, context, ...outbox });
       const logId = await log({ channel: input.channel, templateKey: String(input.templateKey), address, status: "dry_run", context });
       return { status: "dry_run", logId };
+    }
+    if (!providerReady(input.channel)) {
+      // Live mode but this channel isn't set up: a real failure, so fallbacks (e.g. WhatsApp → SMS) kick in.
+      const error = `${input.channel} provider is not configured`;
+      const logId = await log({ channel: input.channel, templateKey: String(input.templateKey), address, status: "failed", error, context });
+      return { status: "failed", logId, error };
     }
 
     const providerId = await send();
