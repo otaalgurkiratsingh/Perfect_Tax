@@ -62,3 +62,24 @@ merge as you like.
 - Settings: go-live checklist, retention months, add/turn off staff, change roles. Office QR code page (printable).
 - `npm run create-admin -- you@firm.ca "Name"` creates the first admin and prints a set-password link.
 - Tests: `dashboard.spec.ts` (5) + `security.spec.ts` (1) — all passing.
+
+### Phase 3 — Automations
+- On submit: firm alert by email + SMS (to `notifications.firmEmails` / `firmSmsNumbers`) with **only** name,
+  services ticked and the dashboard link. Template engine refuses undeclared variables and any variable named
+  like SIN/birth/account/secret; a unit test pins the alert's allowed variables to exactly those three.
+- On submit: client auto-reply (email + SMS if a phone was given) with reference number and next steps.
+- Abandonment: reminder 1 at 24h idle, reminder 2 at 72h (and ≥24h after #1), then stop. Each reminder carries
+  a fresh 7-day resume link.
+- Missing documents: reminder every 7 days while the request is open, max 3, then stop. Fresh link each time.
+- Every SMS/WhatsApp names the firm and ends "Reply STOP to opt out."; every client email has the firm's name,
+  address and a signed one-click-to-confirm unsubscribe link. Inbound STOP/START via a signature-checked Twilio
+  webhook. Opted-out addresses are skipped and logged as `skipped_opt_out`.
+- Automated reminders only go out 9am–7pm Toronto time (configurable); instant notifications go any time.
+- Retention: intakes older than the admin-set period are FLAGGED for review; deletion is a manual, admin-only,
+  type-the-reference action that is audit-logged.
+- **Scheduler choice: Netlify Scheduled Function** (`netlify/functions/scheduled-jobs.mts`, every 15 min) calling
+  `POST /api/cron/run` with `CRON_SECRET`. Why: it ships with the code in the same repo and deploy, needs no
+  extra Supabase extensions (pg_cron + pg_net) or database-stored secrets, logs show up in Netlify next to the
+  app, and every job is idempotent with atomic "claim then send" updates, so a missed or doubled run is harmless.
+  Scheduled functions only run on the production deploy, which matches the no-branch-deploys rule.
+- Tests: `automations.spec.ts` (6) — all passing.
