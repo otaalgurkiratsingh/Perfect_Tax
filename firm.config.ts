@@ -104,7 +104,6 @@ export const firmConfig: FirmConfig = {
     // [FIRM TO CONFIRM]
     startIntro:
       "Tell us about yourself and what you need help with. It takes about 5 minutes. You can stop at any time and pick up where you left off.",
-    // [FIRM TO CONFIRM]
     // [FIRM TO CONFIRM] Shown on the start page. "Canada" is only true once the Supabase project is in ca-central-1.
     safetyPoints: [
       "Stored securely in Canada and encrypted.",

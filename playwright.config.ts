@@ -17,7 +17,7 @@ export default defineConfig({
   },
   projects: [
     { name: "staff-setup", testMatch: /staff\.setup\.ts/, use: { ...devices["Desktop Chrome"] } },
-    { name: "security", testMatch: /security\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
+    { name: "security", testMatch: /(security|database)\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
     { name: "mobile", testMatch: /intake\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "chromium" } },
     {
       name: "dashboard",

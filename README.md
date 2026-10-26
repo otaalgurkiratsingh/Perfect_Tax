@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Client Intake System
 
-## Getting Started
+A white-label, secure client-intake and quarterly document-collection system for accounting firms.
+Everything firm-specific (name, branding, contacts, wording, message templates, checklists) lives in
+**`firm.config.ts`**.
 
-First, run the development server:
+- **Public intake form** (`/start` → `/intake`): mobile-first 7-step wizard, autosave + resume links,
+  direct-to-storage uploads, versioned consent records, Turnstile + honeypot + rate limits.
+- **Staff dashboard** (`/staff`): 2-step sign-in, inbox pipeline, intake detail, ZIP, SIN-safe CSV,
+  missing-document requests, append-only audit log, settings.
+- **Automations**: firm alerts with no sensitive data, client auto-replies, abandonment and missing-doc reminders,
+  CASL opt-outs, retention flags. A Netlify scheduled function runs every 15 minutes.
+- **Quarterly collection** (`/staff/quarters`, `/q`, `/portal`): per-client checklists, personal upload links,
+  Day 0/7/14/21/28 chase that stops when a client completes, quarter board, magic-link client page.
+- **Statement extraction (beta)**: text-based bank-statement PDFs → reconciled CSV; scanned → manual review.
 
+Docs: `BUILD_REPORT.md` (what was built + test evidence), `GK_SETUP.md` (go-live steps), `STAFF_GUIDE.md`,
+`FIELD_MAP.md` (form fields to verify against the firm's paper form).
+
+## Stack
+Next.js 16 (App Router) · TypeScript · Tailwind v4 · Supabase (Postgres + private Storage + Auth, Canada
+region) · Resend (email) · Twilio (SMS/WhatsApp) · Netlify.
+
+## Local development
 ```bash
+npm install
+npx supabase start            # local Postgres/Auth/Storage (Docker)
+# create .env.local from .env.example using `npx supabase status -o env` values, plus:
+#   SIN_ENCRYPTION_KEY / LINK_SIGNING_SECRET / CRON_SECRET  (openssl rand -base64 32)
+#   MESSAGING_MODE=dry_run  INSECURE_LOCAL_TESTING=1  DEV_OUTBOX_DIR=$PWD/.outbox  TWILIO_AUTH_TOKEN=local-test
+#   SUPABASE_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
+npm run db:seed               # demo data + prints a staff login
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Tests
+```bash
+npm test                      # unit tests (vitest)
+npm run build && npm run test:e2e   # Playwright end-to-end against local Supabase + production build
+psql "$SUPABASE_DB_URL" -f supabase/checks/security.sql   # database security self-check (all 0 rows)
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Layout
+```
+firm.config.ts            the ONE firm-specific file
+supabase/migrations/      schema, RLS, storage bucket
+src/app/                  pages + API routes (public, /staff, /portal, /api)
+src/lib/                  intake, messaging, jobs, quarterly, extraction, security
+netlify/functions/        scheduled job runner
+scripts/                  seed + create-admin
+tests/                    unit, e2e, fixtures
+```
