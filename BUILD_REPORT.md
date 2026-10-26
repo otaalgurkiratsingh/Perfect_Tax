@@ -106,3 +106,23 @@ merge as you like.
 - WhatsApp templates live in `firm.config.ts` next to SMS/email. WhatsApp stays OFF (`features.whatsappEnabled`)
   until a Twilio WhatsApp sender and Meta-approved templates (`contentSid`) exist; until then SMS + email.
 - Tests: `quarterly.spec.ts` (full cycle with 5 clients) + `whatsapp.test.ts` (fallback logic) — passing.
+
+### Phase 5 — Statement Extraction (beta)
+- On each client-quarter page, staff click "Read all statements" (or one file). Text-based PDF bank statements
+  are read with pdf.js on the server (no third-party service). Output: date, description, withdrawal (debit),
+  deposit (credit), balance, page, and a per-row "needs checking" note. "Download CSV" combines every statement
+  of the client-quarter into one clean CSV.
+- **Never guesses:** scanned/photographed statements (no text layer), unreadable or encrypted PDFs, and pages
+  without a recognisable Date/Withdrawals/Deposits/Balance table are marked **manual review** with no numbers.
+  Amounts must sit under a recognised column header; anything else is flagged.
+- **Confidence per file:** high = opening + deposits − withdrawals equals the printed closing balance AND every
+  printed running balance matches; medium = totals reconcile but some rows are flagged; low = totals don't
+  reconcile or opening/closing can't be found (the reason is spelled out).
+- The UI states plainly that this assists bookkeeping and does not replace staff judgment.
+- Handles two common layouts: balance on every row ("Mon DD" dates), and date-once-per-day with the balance only
+  at day end ("DD Mon" dates, "Cheques & Debits ($)" headers); multi-page tables and wrapped descriptions.
+- Tests: `extraction.test.ts` (6 unit) + `extraction.spec.ts` (e2e: 48-transaction statement → CSV totals match to
+  the cent; scanned → manual review; tampered → low) — passing.
+- Limits (honest): tested on synthetic statements modelled on common Canadian layouts, not on real bank PDFs
+  (none were available). Real statements from the firm's top banks should be run through it before relying on it;
+  the confidence flag will show where a layout isn't understood.

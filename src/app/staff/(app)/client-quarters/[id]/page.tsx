@@ -7,6 +7,7 @@ import { CQ_STATUS_LABELS } from "@/lib/quarterly/labels";
 import { requireStaff, staffAudit } from "@/lib/staff/auth";
 import { ReopenItemButton, RowActions } from "@/components/staff/QuarterButtons";
 import { StatusPill } from "@/components/staff/StatusPill";
+import { ExtractionPanel } from "@/components/staff/ExtractionPanel";
 
 export const metadata: Metadata = { title: "Client quarter" };
 
@@ -20,13 +21,16 @@ export default async function ClientQuarterPage({ params }: { params: Promise<{ 
   const { data: cq } = await ctx.supabase.from("client_quarters").select("*, clients(*), quarters(*)").eq("id", id).maybeSingle();
   if (!cq) notFound();
   await staffAudit(ctx, { action: "view_client_quarter", targetType: "client_quarter", targetId: id });
-  const [{ data: items }, { data: docs }, { data: messages }] = await Promise.all([
+  const [{ data: items }, { data: docs }, { data: messages }, { data: extractions }] = await Promise.all([
     ctx.supabase.from("checklist_items").select("*").eq("client_quarter_id", id).order("sort_order"),
     ctx.supabase.from("documents").select("id, checklist_item_id, original_name, mime_type, size_bytes, uploaded_at").eq("client_quarter_id", id).eq("status", "uploaded").order("uploaded_at"),
     ctx.supabase.from("message_log").select("created_at, channel, template_key, recipient_masked, status, error").eq("client_quarter_id", id).order("created_at", { ascending: false }).limit(50),
+    ctx.supabase.from("extractions").select("*").eq("client_quarter_id", id),
   ]);
   const client = cq.clients;
   const quarter = cq.quarters;
+  const bankItemIds = new Set((items ?? []).filter((i) => i.bank_statement).map((i) => i.id));
+  const bankDocs = (docs ?? []).filter((d) => d.checklist_item_id && bankItemIds.has(d.checklist_item_id) && d.mime_type === "application/pdf");
 
   return (
     <div className="space-y-6">
@@ -90,6 +94,22 @@ export default async function ClientQuarterPage({ params }: { params: Promise<{ 
         </ul>
       </section>
 
+      <ExtractionPanel
+        clientQuarterId={id}
+        documents={bankDocs.map((d) => ({ id: d.id, name: d.original_name }))}
+        extractions={(extractions ?? []).map((e) => ({
+          documentId: e.document_id,
+          status: e.status,
+          confidence: e.confidence,
+          reason: e.reason,
+          transactionCount: e.transaction_count,
+          totalDebits: e.total_debits,
+          totalCredits: e.total_credits,
+          openingBalance: e.opening_balance,
+          closingBalance: e.closing_balance,
+          reconciled: e.reconciled,
+        }))}
+      />
 
       <section className="rounded-xl bg-white p-5 shadow-sm">
         <h2 className="mb-2 text-lg font-bold">Messages</h2>
