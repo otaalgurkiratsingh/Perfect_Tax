@@ -1,0 +1,13 @@
+# Netlify build settings.
+# Only PRODUCTION builds run (GK's build minutes are limited): branch deploys and
+# deploy previews are skipped by the ignore command below.
+[build]
+  command = "npm run build"
+  publish = ".next"
+  ignore = "test \"$CONTEXT\" != \"production\""
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  node_bundler = "esbuild"
