@@ -367,7 +367,4 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
   return <div className={`rounded-2xl bg-white p-5 shadow-sm ${className}`}>{children}</div>;
 }
 
-export function formatBytes(n: number): string {
-  if (n < 1024 * 1024) return `${Math.max(1, Math.round(n / 1024))} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
+export { formatBytes } from "@/lib/format";

@@ -16,7 +16,15 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    { name: "mobile", use: { ...devices["iPhone 13"], browserName: "chromium" } },
+    { name: "staff-setup", testMatch: /staff\.setup\.ts/, use: { ...devices["Desktop Chrome"] } },
+    { name: "security", testMatch: /security\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
+    { name: "mobile", testMatch: /intake\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "chromium" } },
+    {
+      name: "dashboard",
+      testMatch: /(dashboard|automations|quarterly|extraction)\.spec\.ts/,
+      dependencies: ["staff-setup"],
+      use: { ...devices["Desktop Chrome"], storageState: "test-results/.auth/admin.json", acceptDownloads: true },
+    },
   ],
   webServer: {
     command: "npm run start -- -H 127.0.0.1 -p 3000",

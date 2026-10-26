@@ -39,3 +39,26 @@ merge as you like.
   SHA-256 of the text, timestamp, IP and browser.
 - Confirmation: what happens next, reference number, booking button (shown once `links.bookingUrl` is set).
 - Tests: `tests/e2e/intake.spec.ts` (Playwright, iPhone 13 viewport) — 4/4 passing. Unit tests 23/23.
+
+### Phase 2 — Staff dashboard
+- Supabase Auth email + password; public sign-up disabled. **2-step sign-in (authenticator app/TOTP) is
+  required** for every staff member (`features.requireStaff2FA`). Failed logins rate-limited per IP (20/15 min)
+  and per email (5/15 min) and audit-logged. Sessions: 30-min idle timeout + 12-hour absolute limit; auth
+  cookies are httpOnly + Secure. Deactivated staff lose access immediately.
+- Roles: admin (audit log, settings, staff accounts, permanent delete) and staff.
+- Inbox: pipeline tabs with counts (New → In Review → Docs Missing → Ready → Client Created), plus
+  "Unfinished" drafts and "Deletion review"; filter by service and date; search name/email/business/reference;
+  referral source shown on every row.
+- Intake detail: every answer, SIN masked (`••• ••• 544`) with an optional audit-logged 30-second reveal,
+  documents (view in browser for PDF/JPG/PNG, download for all; each via a ≤5-minute signed URL and logged),
+  consent records with exact text, message history, missing-doc request history.
+- ZIP: the browser builds the ZIP from short-lived signed URLs (Netlify functions can't return big files);
+  includes a text summary of all answers + consents (SIN masked). Logged as `download_zip`.
+- "Request missing docs": pick items → client gets an upload-only link (7 days) by email + SMS showing ONLY
+  those items; when every item arrives the request closes and the intake flips to In Review with a
+  "Missing documents received" badge.
+- CSV export of the current view: `SIN on file: yes/no` only; formula-injection-safe cells; logged.
+- Append-only audit log (DB trigger blocks update/delete/truncate) + admin viewer with filters.
+- Settings: go-live checklist, retention months, add/turn off staff, change roles. Office QR code page (printable).
+- `npm run create-admin -- you@firm.ca "Name"` creates the first admin and prints a set-password link.
+- Tests: `dashboard.spec.ts` (5) + `security.spec.ts` (1) — all passing.

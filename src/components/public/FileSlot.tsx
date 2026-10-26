@@ -26,6 +26,7 @@ export function FileSlot({
   onAdded,
   onRemoved,
   allowRemove = true,
+  readOnly = false,
   testId,
 }: {
   token: string;
@@ -36,6 +37,7 @@ export function FileSlot({
   onAdded: (file: UploadedFile) => void;
   onRemoved: (id: string) => void;
   allowRemove?: boolean;
+  readOnly?: boolean;
   testId?: string;
 }) {
   const input = useRef<HTMLInputElement>(null);
@@ -156,6 +158,8 @@ export function FileSlot({
         </ul>
       ) : null}
 
+      {readOnly ? null : (
+      <>
       <input
         ref={input}
         type="file"
@@ -173,6 +177,8 @@ export function FileSlot({
         {files.length ? "+ Add another file" : "Tap to add a photo or file"}
       </button>
       <p className="mt-2 text-center text-[13px] text-gray-500">PDF, JPG, PNG or HEIC · up to 25 MB each</p>
+      </>
+      )}
     </div>
   );
 }

@@ -5,7 +5,8 @@ import { env } from "@/lib/env";
 
 export const authCookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
+  // Secure everywhere except the explicit local test mode (plain http://127.0.0.1).
+  secure: process.env.NODE_ENV === "production" && process.env.INSECURE_LOCAL_TESTING !== "1",
   sameSite: "lax" as const,
   path: "/",
 };
