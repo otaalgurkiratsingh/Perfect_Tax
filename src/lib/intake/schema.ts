@@ -4,8 +4,7 @@
 // are encrypted on arrival.
 
 import { z } from "zod";
-import { firmConfig } from "@firm/config";
-import type { ApplicantType, BusinessEntity } from "@/lib/config/types";
+import type { ApplicantType, BusinessEntity, DocumentSlot } from "@/lib/config/types";
 
 export const PROVINCES = [
   ["ON", "Ontario"],
@@ -136,16 +135,22 @@ export function normalizeBn(input: string | undefined): string {
   return (input ?? "").replace(/\D/g, "").slice(0, 9);
 }
 
-const nonEmpty = (label: string) => z.string().trim().min(1, `Please enter ${label}`).max(200);
-const emailRule = z.string().trim().max(200).email("Please enter a valid email, like name@example.com");
+// Every rule carries a plain-language message for "never filled in" too.
+const nonEmpty = (label: string) =>
+  z.string({ error: `Please enter ${label}` }).trim().min(1, `Please enter ${label}`).max(200);
+const emailRule = z
+  .string({ error: "Please enter your email" })
+  .trim()
+  .max(200)
+  .email("Please enter a valid email, like name@example.com");
 const phoneRule = z
-  .string()
+  .string({ error: "Please enter a 10-digit phone number" })
   .trim()
   .refine((v) => normalizePhone(v) !== null, "Please enter a 10-digit phone number");
 
 const pastDate = (label: string) =>
   z
-    .string()
+    .string({ error: `Please enter ${label}` })
     .regex(/^\d{4}-\d{2}-\d{2}$/, `Please enter ${label}`)
     .refine((v) => {
       const t = Date.parse(v);
@@ -157,7 +162,10 @@ const addressRule = z.object({
   unit: z.string().trim().max(40).optional(),
   city: nonEmpty("your city"),
   province: z.enum(PROVINCES.map((p) => p[0]) as [string, ...string[]], { message: "Please choose a province" }),
-  postalCode: z.string().trim().regex(POSTAL, "Please enter a postal code like L7A 1C1"),
+  postalCode: z
+    .string({ error: "Please enter your postal code" })
+    .trim()
+    .regex(POSTAL, "Please enter a postal code like L7A 1C1"),
 });
 
 const personFull = z.object({
@@ -206,10 +214,10 @@ const businessRule = z
       .string()
       .optional()
       .refine((v) => !v || normalizeBn(v).length === 9, "A Business Number has 9 digits — leave it blank if you don't have one yet"),
-    fiscalYearEnd: z.string().regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, "Please choose your fiscal year-end"),
+    fiscalYearEnd: z.string({ error: "Please choose your fiscal year-end" }).regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, "Please choose your fiscal year-end"),
     incorporationDate: z.string().optional(),
     incorporationProvince: z.string().optional(),
-    industry: z.string().min(1, "Please choose an industry"),
+    industry: z.string({ error: "Please choose an industry" }).min(1, "Please choose an industry"),
     industryOther: z.string().max(100).optional(),
     addressDifferent: z.boolean().optional(),
     address: z.any().optional(),
@@ -230,7 +238,9 @@ const businessRule = z
 
 const corporationExtra = z.object({
   incorporationDate: pastDate("the incorporation date"),
-  incorporationProvince: z.string().min(2, "Please choose the province or federal"),
+  incorporationProvince: z
+    .string({ error: "Please choose the province or federal" })
+    .min(2, "Please choose the province or federal"),
 });
 
 function collect(errors: FieldErrors, prefix: string, result: { success: boolean; error?: z.ZodError }) {
@@ -241,8 +251,12 @@ function collect(errors: FieldErrors, prefix: string, result: { success: boolean
   }
 }
 
+function withAddress(p: PersonInfo | undefined): PersonInfo {
+  return { ...(p ?? {}), address: p?.address ?? {} };
+}
+
 /** Validate one step. Returns {} when the step is complete. */
-export function validateStep(step: StepKey, a: IntakeAnswers): FieldErrors {
+export function validateStep(step: StepKey, a: IntakeAnswers, serviceKeys: readonly string[]): FieldErrors {
   const errors: FieldErrors = {};
   switch (step) {
     case "type": {
@@ -253,17 +267,17 @@ export function validateStep(step: StepKey, a: IntakeAnswers): FieldErrors {
     case "details": {
       if (a.applicantType === "business") {
         collect(errors, "primary", businessContact.safeParse(a.primary ?? {}));
-        if (a.businessEntity === "sole_prop") collect(errors, "primary", soleProprietorPersonal.safeParse(a.primary ?? {}));
+        if (a.businessEntity === "sole_prop") collect(errors, "primary", soleProprietorPersonal.safeParse(withAddress(a.primary)));
         collect(errors, "business", businessRule.safeParse(a.business ?? {}));
         if (a.businessEntity === "corporation") collect(errors, "business", corporationExtra.safeParse(a.business ?? {}));
       } else {
-        collect(errors, "primary", personFull.safeParse(a.primary ?? {}));
+        collect(errors, "primary", personFull.safeParse(withAddress(a.primary)));
         if (a.applicantType === "couple") collect(errors, "spouse", spouseRule.safeParse(a.spouse ?? {}));
       }
       break;
     }
     case "services": {
-      const valid = new Set<string>(firmConfig.intake.services.map((s) => s.key));
+      const valid = new Set<string>(serviceKeys);
       const chosen = (a.services ?? []).filter((s) => valid.has(s));
       if (chosen.length === 0) errors.services = "Please choose at least one service";
       if (chosen.includes("other") && !a.servicesOther?.trim()) errors.servicesOther = "Please tell us what you need";
@@ -287,18 +301,23 @@ export function validateStep(step: StepKey, a: IntakeAnswers): FieldErrors {
   return errors;
 }
 
-export function documentSlotsFor(type: ApplicantType | undefined) {
-  return firmConfig.intake.documentSlots.filter((d) => !type || (d.showFor as readonly string[]).includes(type));
+export function documentSlotsFor(slots: readonly DocumentSlot[], type: ApplicantType | undefined) {
+  return slots.filter((d) => !type || d.showFor.includes(type));
+}
+
+export interface SinFeatures {
+  collectSin: boolean;
+  collectSpouseSin: boolean;
 }
 
 /** Whether the SIN field is shown for the main applicant. */
-export function asksPrimarySin(a: IntakeAnswers): boolean {
-  if (!firmConfig.features.collectSin) return false;
+export function asksPrimarySin(a: IntakeAnswers, f: SinFeatures): boolean {
+  if (!f.collectSin) return false;
   return a.applicantType !== "business" || a.businessEntity === "sole_prop";
 }
 
-export function asksSpouseSin(a: IntakeAnswers): boolean {
-  return firmConfig.features.collectSin && firmConfig.features.collectSpouseSin && a.applicantType === "couple";
+export function asksSpouseSin(a: IntakeAnswers, f: SinFeatures): boolean {
+  return f.collectSin && f.collectSpouseSin && a.applicantType === "couple";
 }
 
 /** Strip anything outside the known shape so drafts can't store arbitrary blobs. */

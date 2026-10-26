@@ -12,7 +12,7 @@ const GLOBAL_VARS = ["firmName", "firmPhone", "firmEmail"] as const;
 export const SMS_OPT_OUT = "Reply STOP to opt out.";
 
 /** Field names that must never be passed to any template. */
-const FORBIDDEN_VARS = /sin|social|birth|dob|account|password|secret/i;
+const FORBIDDEN_VARS = /^(sin|dob|password)$|Sin$|SIN|[Ss]ocial|[Bb]irth|[Aa]ccount|[Ss]ecret/;
 
 function globals(): TemplateVars {
   return {

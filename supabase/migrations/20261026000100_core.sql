@@ -264,7 +264,7 @@ values (
   'documents',
   false,
   26214400,
-  array['application/pdf', 'image/jpeg', 'image/png', 'image/heic', 'image/heif', 'text/csv']
+  array['application/pdf', 'image/jpeg', 'image/png', 'image/heic', 'image/heif']
 )
 on conflict (id) do update
   set public = false,

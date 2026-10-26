@@ -122,6 +122,7 @@ export interface FirmConfig {
     estimatedMinutes: number;
     startIntro: string;
     reminderNotice: string;
+    safetyPoints: string[];
     services: ServiceOption[];
     documentSlots: DocumentSlot[];
     referralSources: { key: string; label: string; detailLabel?: string }[];
