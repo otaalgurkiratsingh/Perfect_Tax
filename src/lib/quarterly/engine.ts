@@ -163,7 +163,8 @@ export async function quarterMessageVars(clientQuarterId: string) {
     loaded,
     vars: {
       contactName: client.contact_name.split(/\s+/)[0] || client.contact_name,
-      businessName: client.business_name,
+      // Templates often end a sentence after the name; avoid "Inc.." doubles.
+      businessName: client.business_name.replace(/\.+$/, ""),
       quarterLabel: quarter.label,
       periodLabel: periodLabelOf(quarter),
       itemList: (missing.length ? missing : items).map((i) => `• ${i.label}`).join("\n"),
