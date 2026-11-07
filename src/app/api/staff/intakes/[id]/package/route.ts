@@ -4,6 +4,7 @@ import { presentIntake, sectionsToText } from "@/lib/intake/present";
 import type { IntakeRow } from "@/lib/intake/server";
 import { staffApi, staffAudit } from "@/lib/staff/auth";
 import { DOCUMENTS_BUCKET } from "@/lib/supabase/admin";
+import { browserStorageUrl } from "@/lib/storageUrl";
 
 // "Download all as ZIP". Netlify functions can't return large bodies, so the
 // server returns the answers summary + short-lived signed URLs, and the
@@ -49,7 +50,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     const n = used.get(name) ?? 0;
     used.set(name, n + 1);
     if (n) name = name.replace(/(\.[^.]+)?$/, ` (${n + 1})$1`);
-    files.push({ name, url: data.signedUrl });
+    files.push({ name, url: browserStorageUrl(data.signedUrl) });
   }
   await staffAudit(ctx, { action: "download_zip", targetType: "intake", targetId: id, details: { files: files.length } });
   const base = `${(row.primary_name ?? "intake").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-")}-${row.reference}`;

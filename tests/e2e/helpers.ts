@@ -111,6 +111,11 @@ export async function ensureStaff(who: (typeof STAFF)[keyof typeof STAFF]) {
 
 export const BASE = env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
 
+/** Signed storage links may be relative (STORAGE_PROXY=1): resolve them against the app. */
+export function abs(url: string): string {
+  return new URL(url, BASE).toString();
+}
+
 async function call<T>(path: string, token: string | null, method = "GET", body?: unknown): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method,
@@ -127,7 +132,7 @@ export async function uploadVia(token: string, slot: { docType?: string; itemId?
   const form = new FormData();
   form.append("cacheControl", "3600");
   form.append("", new Blob([new Uint8Array(bytes)], { type: mime }), name);
-  const put = await fetch(signed.signedUrl, { method: "PUT", body: form, headers: { "x-upsert": "false" } });
+  const put = await fetch(abs(signed.signedUrl), { method: "PUT", body: form, headers: { "x-upsert": "false" } });
   if (!put.ok) throw new Error(`storage upload failed ${put.status}`);
   return call<{ document: { id: string } }>("/api/uploads/complete", token, "POST", { documentId: signed.documentId });
 }

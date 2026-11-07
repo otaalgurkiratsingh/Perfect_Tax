@@ -46,6 +46,15 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // Opt-in (STORAGE_PROXY=1): forward ONLY token-signed storage upload/download paths to
+  // Supabase, so browsers can use the app through a single public address. See src/lib/storageUrl.ts.
+  async rewrites() {
+    if (process.env.STORAGE_PROXY !== "1" || !supabaseUrl) return [];
+    return [
+      { source: "/storage-proxy/object/upload/sign/:path*", destination: `${supabaseUrl}/storage/v1/object/upload/sign/:path*` },
+      { source: "/storage-proxy/object/sign/:path*", destination: `${supabaseUrl}/storage/v1/object/sign/:path*` },
+    ];
+  },
   async headers() {
     return [
       { source: "/:path*", headers: baseHeaders },

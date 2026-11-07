@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { createHmac } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { BASE, db, env, linkIn, outbox, pdfFile, PNG_1PX, resetRateLimits, unique } from "./helpers";
+import { abs, BASE, db, env, linkIn, outbox, pdfFile, PNG_1PX, resetRateLimits, unique } from "./helpers";
 
 const DAY = 86_400_000;
 
@@ -106,7 +106,7 @@ test("full quarter cycle: open, checklists per client type, Day-0 links, chase, 
     })).json();
     const form = new FormData();
     form.append("", new Blob([new Uint8Array(PNG_1PX)], { type: "image/png" }), "cheque.png");
-    await fetch(signed.signedUrl, { method: "PUT", body: form });
+    await fetch(abs(signed.signedUrl), { method: "PUT", body: form });
     await fetch(`${BASE}/api/uploads/complete`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${alphaToken}` }, body: JSON.stringify({ documentId: signed.documentId }) });
     const echoToken = linkIn(day0.find((m) => m.context.clientQuarterId === E.cqId && m.channel === "sms")!.text, "/q#t=").split("#t=")[1];
     const { data: echoItems } = await admin.from("checklist_items").select("id").eq("client_quarter_id", E.cqId);

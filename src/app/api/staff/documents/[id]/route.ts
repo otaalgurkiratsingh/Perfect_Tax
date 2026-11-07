@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { firmConfig } from "@firm/config";
 import { staffApi, staffAudit } from "@/lib/staff/auth";
 import { DOCUMENTS_BUCKET } from "@/lib/supabase/admin";
+import { redirectTo } from "@/lib/redirect";
+import { browserStorageUrl } from "@/lib/storageUrl";
 
 // Staff open or download one document. Access is checked, audit-logged, and
 // answered with a redirect to a short-lived (<= 5 minute) signed URL.
@@ -33,5 +35,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     .from(DOCUMENTS_BUCKET)
     .createSignedUrl(doc.storage_path, firmConfig.security.signedUrlSeconds, download ? { download: doc.original_name } : undefined);
   if (error || !data) return Response.json({ error: "Could not open the file" }, { status: 500 });
-  return NextResponse.redirect(data.signedUrl, { headers: { "Cache-Control": "no-store" } });
+  const target = browserStorageUrl(data.signedUrl);
+  return target.startsWith("/") ? redirectTo(target) : NextResponse.redirect(target, { headers: { "Cache-Control": "no-store" } });
 }

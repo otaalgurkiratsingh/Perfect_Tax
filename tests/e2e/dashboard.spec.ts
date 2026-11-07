@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { unzipSync, strFromU8 } from "fflate";
 import { readFileSync } from "node:fs";
-import { auditActions, BASE, db, env, linkIn, outbox, PNG_1PX, resetRateLimits, submitIntakeViaApi, unique } from "./helpers";
+import { abs, auditActions, BASE, db, env, linkIn, outbox, PNG_1PX, resetRateLimits, submitIntakeViaApi, unique } from "./helpers";
 
 test.beforeEach(async () => {
   await resetRateLimits();
@@ -46,8 +46,8 @@ test("detail view, masked SIN, documents, ZIP, CSV — all audit-logged; documen
   const href = await viewLink.getAttribute("href");
   const res = await page.request.get(href!, { maxRedirects: 0 });
   expect(res.status()).toBe(307);
-  const signed = res.headers()["location"];
-  expect(signed).toContain("/storage/v1/object/sign/documents/");
+  const signed = abs(res.headers()["location"]);
+  expect(signed).toMatch(/\/(storage\/v1|storage-proxy)\/object\/sign\/documents\//);
   const jwt = JSON.parse(Buffer.from(new URL(signed).searchParams.get("token")!.split(".")[1], "base64url").toString());
   expect(jwt.exp - jwt.iat).toBeLessThanOrEqual(300);
   const file = await fetch(signed);

@@ -1,6 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { adminClient, DOCUMENTS_BUCKET } from "@/lib/supabase/admin";
+import { browserStorageUrl } from "@/lib/storageUrl";
 
 // Files go DIRECTLY from the browser to Supabase Storage using a short-lived
 // signed upload URL — they never pass through our serverless functions.
@@ -88,7 +89,7 @@ export async function createUploadSlot(target: UploadTarget, fileName: string, s
     await db.from("documents").delete().eq("id", doc.id);
     return { ok: false, error: "Could not start the upload. Please try again." };
   }
-  return { ok: true, documentId: doc.id, signedUrl: signed.signedUrl, mimeType: type.mime };
+  return { ok: true, documentId: doc.id, signedUrl: browserStorageUrl(signed.signedUrl), mimeType: type.mime };
 }
 
 export interface DocumentRow {
